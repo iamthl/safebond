@@ -1,3 +1,4 @@
+// screens/ThreatsScreen.tsx
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -9,10 +10,20 @@ import {
 } from 'react-native';
 import { COLORS, SIZES } from '../constants/theme';
 
+// Import all our components and data
+import { DetectedThreat } from '../types/threats';
+import { MOCK_THREATS } from '../constants/mockData';
+import ThreatListItem from '../components/ThreatListItem';
+import ThreatLineChart from '../components/ThreatLineChart'; // Import the new chart-kit version
+
 const filters: string[] = ['All', 'Calls', 'Messages', 'High risk'];
 
 const ThreatsScreen: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState('All');
+  const [threats, setThreats] = useState<DetectedThreat[]>(MOCK_THREATS);
+
+  // TODO: Add filtering logic
+  // const filteredThreats = threats.filter(...)
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -22,6 +33,17 @@ const ThreatsScreen: React.FC = () => {
           Monitor and analyze detected threats in real-time
         </Text>
 
+        {/* --- 1. CHART (Data is all platforms, grouped by time) --- */}
+        <View style={styles.chartCard}>
+          <Text style={styles.cardTitle}>
+            Scams Over Time
+          </Text>
+          {/* This now renders our new, beautiful chart */}
+          <ThreatLineChart threats={threats} />
+        </View>
+
+        {/* --- 2. RECENT ALERTS --- */}
+        <Text style={styles.listTitle}>Recent Alerts</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -48,21 +70,18 @@ const ThreatsScreen: React.FC = () => {
           ))}
         </ScrollView>
 
-        <View style={styles.chartCard}>
-          <Text style={styles.cardTitle}>Threats Detected Over Time</Text>
-          <View style={styles.chartPlaceholder}>
-            <Text style={styles.placeholderText}>
-              Chart Placeholder
-              {'\n'}
-              (Can use 'react-native-svg-charts')
-            </Text>
-          </View>
+        {/* --- 3. THREAT LIST --- */}
+        <View style={styles.listContainer}>
+          {threats.map((threat) => (
+            <ThreatListItem key={threat.id} threat={threat} />
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
+// --- STYLES ---
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -83,6 +102,25 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: SIZES.padding,
   },
+  chartCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16, // Match chart's internal radius
+    padding: SIZES.padding,
+    marginBottom: SIZES.padding,
+  },
+  cardTitle: {
+    fontSize: SIZES.h3,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SIZES.padding,
+  },
+  listTitle: {
+    fontSize: SIZES.h3,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SIZES.padding,
+    marginTop: SIZES.base,
+  },
   filterRow: {
     flexDirection: 'row',
     marginBottom: SIZES.padding,
@@ -98,28 +136,8 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontWeight: '600',
   },
-  chartCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SIZES.padding,
-  },
-  cardTitle: {
-    fontSize: SIZES.h3,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  chartPlaceholder: {
-    height: 250,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#2a3038',
-    borderRadius: 8,
-    marginTop: SIZES.padding,
-  },
-  placeholderText: {
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
+  listContainer: {
+    // This container just holds the list items
   },
 });
 
