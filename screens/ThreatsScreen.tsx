@@ -1,5 +1,5 @@
 // screens/ThreatsScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // <-- Import useEffect
 import {
   StyleSheet,
   View,
@@ -7,20 +7,55 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  NativeEventEmitter, // <-- Import NativeEventEmitter
+  NativeModules,      // <-- Import NativeModules
 } from 'react-native';
 import { COLORS, SIZES } from '../constants/theme';
 
-// Import all our components and data
 import { DetectedThreat } from '../types/threats';
-import { MOCK_THREATS } from '../constants/mockData';
+// import { MOCK_THREATS } from '../constants/mockData'; // <-- No longer needed
 import ThreatListItem from '../components/ThreatListItem';
-import ThreatLineChart from '../components/ThreatLineChart'; // Import the new chart-kit version
+import ThreatLineChart from '../components/ThreatLineChart';
+
+// --- IMPORTANT ---
+// This assumes you have created a native module named "ThreatDetectorModule"
+// The name must match what you create in your native (Swift/Kotlin) code.
+const { ThreatDetectorModule } = NativeModules;
+const threatEventEmitter = new NativeEventEmitter(ThreatDetectorModule);
+// ---------------
 
 const filters: string[] = ['All', 'Calls', 'Messages', 'High risk'];
 
 const ThreatsScreen: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState('All');
-  const [threats, setThreats] = useState<DetectedThreat[]>(MOCK_THREATS);
+  
+  // 1. Initialize state with an empty array, not MOCK_THREATS
+  const [threats, setThreats] = useState<DetectedThreat[]>([]);
+
+  // 2. Add a useEffect hook to listen for native events
+  useEffect(() => {
+    // --- Suggestion: Load saved threats from storage here ---
+    // e.g., loadThreatsFromStorage().then(savedThreats => setThreats(savedThreats));
+
+    // 3. Subscribe to the "onThreatDetected" event from your native code
+    const subscription = threatEventEmitter.addListener(
+      'onThreatDetected',
+      (newThreat: DetectedThreat) => {
+        console.log('New threat detected:', newThreat);
+        
+        // 4. Add the new threat to the top of the list
+        setThreats(prevThreats => [newThreat, ...prevThreats]);
+
+        // --- Suggestion: Save the new threat to storage here ---
+        // e.g., saveThreatToStorage(newThreat);
+      }
+    );
+
+    // 5. Clean up the listener when the component unmounts
+    return () => {
+      subscription.remove();
+    };
+  }, []); // The empty array [] means this runs once when the component mounts
 
   // TODO: Add filtering logic
   // const filteredThreats = threats.filter(...)
@@ -35,46 +70,42 @@ const ThreatsScreen: React.FC = () => {
 
         {/* --- 1. CHART (Data is all platforms, grouped by time) --- */}
         <View style={styles.chartCard}>
-          <Text style={styles.cardTitle}>
-            Scams Over Time
-          </Text>
-          {/* This now renders our new, beautiful chart */}
-          <ThreatLineChart threats={threats} />
+          <Text style={styles.cardTitle}>Threats Over Time</Text>
+          <ThreatLineChart threats={threats} /> {/* Chart now uses real data */}
         </View>
 
-        {/* --- 2. RECENT ALERTS --- */}
-        <Text style={styles.listTitle}>Recent Alerts</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterRow}
-        >
+        {/* --- 2. FILTERS --- */}
+        <View style={styles.filterContainer}>
           {filters.map((filter) => (
             <TouchableOpacity
               key={filter}
               style={[
                 styles.filterButton,
-                activeFilter === filter && { backgroundColor: COLORS.primary },
+                activeFilter === filter && styles.filterButtonActive,
               ]}
-              onPress={() => setActiveFilter(filter)}
-            >
+              onPress={() => setActiveFilter(filter)}>
               <Text
                 style={[
-                  styles.filterButtonText,
-                  activeFilter === filter && { color: COLORS.background },
-                ]}
-              >
+                  styles.filterText,
+                  activeFilter === filter && styles.filterTextActive,
+                ]}>
                 {filter}
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
-        {/* --- 3. THREAT LIST --- */}
-        <View style={styles.listContainer}>
-          {threats.map((threat) => (
-            <ThreatListItem key={threat.id} threat={threat} />
-          ))}
+        {/* --- 3. RECENT ALERTS --- */}
+        <Text style={styles.listTitle}>Recent Alerts</Text>
+        <View>
+          {/* 6. The list now renders the real threats from state */}
+          {threats.length === 0 ? (
+            <Text style={styles.noThreatsText}>No threats detected yet.</Text>
+          ) : (
+            threats.map((threat) => (
+              <ThreatListItem key={threat.id} threat={threat} />
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -83,6 +114,14 @@ const ThreatsScreen: React.FC = () => {
 
 // --- STYLES ---
 const styles = StyleSheet.create({
+  // ... (all your existing styles) ...
+  noThreatsText: {
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: SIZES.padding,
+    fontSize: SIZES.body,
+  },
+  // ... (rest of your styles) ...
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -121,23 +160,26 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.padding,
     marginTop: SIZES.base,
   },
-  filterRow: {
+  filterContainer: {
     flexDirection: 'row',
     marginBottom: SIZES.padding,
   },
   filterButton: {
-    backgroundColor: COLORS.card,
     paddingVertical: 8,
     paddingHorizontal: 16,
+    backgroundColor: COLORS.card,
     borderRadius: 20,
     marginRight: 8,
   },
-  filterButtonText: {
-    color: COLORS.text,
-    fontWeight: '600',
+  filterButtonActive: {
+    backgroundColor: COLORS.primary,
   },
-  listContainer: {
-    // This container just holds the list items
+  filterText: {
+    color: COLORS.textSecondary,
+  },
+  filterTextActive: {
+    color: COLORS.white,
+    fontWeight: 'bold',
   },
 });
 
